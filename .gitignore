@@ -1,0 +1,15 @@
+### https://raw.github.com/github/gitignore/95bdb4e35df6f7b736f2e95dd53ef11f2a8a439e/Elm.gitignore
+
+# elm-package generated files
+#elm-package.json
+elm-stuff/
+# elm-repl generated files
+repl-temp-*
+
+
+### https://raw.github.com/github/gitignore/95bdb4e35df6f7b736f2e95dd53ef11f2a8a439e/Global/VisualStudioCode.gitignore
+
+.vscode
+
+
+
