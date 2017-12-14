@@ -1,14 +1,17 @@
 module Main exposing (main)
 
-import Html exposing (Html, div, text, table, tr, td)
+import Html exposing (Html, div, text, button)
 import Html.Attributes exposing (style)
+import Html.Events exposing (onClick)
+import Html.Lazy exposing (lazy)
+import Time exposing (every, second)
 import Random
 
 
 main : Program Never Model Msg
 main =
     Html.program
-        { init = init ! []
+        { init = init ! [ initializeTableByRandom init.lifegame.w init.lifegame.h ]
         , update = update
         , subscriptions = subscriptions
         , view = view
@@ -18,6 +21,7 @@ main =
 type alias Model =
     { generation : Int
     , speed : Int
+    , edge : EdgeStrategy
     , lifegame : LifeGame
     }
 
@@ -25,8 +29,17 @@ type alias Model =
 init : Model
 init =
     { generation = 0
-    , speed = 0
-    , lifegame = { w = 100, h = 100, table = List.repeat 100 (List.repeat 100 Dead) }
+    , speed = 2
+    , edge = Zero
+    , lifegame = emptyLifeGame 50 100
+    }
+
+
+emptyLifeGame : Int -> Int -> LifeGame
+emptyLifeGame m n =
+    { w = n
+    , h = m
+    , table = List.repeat m (List.repeat n Dead)
     }
 
 
@@ -49,6 +62,8 @@ type EdgeStrategy
 
 type Msg
     = NoOp
+    | InitializeLifeGame LifeGame
+    | NextGen
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -57,10 +72,23 @@ update msg model =
         NoOp ->
             model ! []
 
+        InitializeLifeGame lifegame ->
+            { model | lifegame = lifegame, generation = 0 } ! []
+
+        NextGen ->
+            { model
+                | lifegame = nextGen model.edge model.lifegame
+                , generation = model.generation + 1
+            }
+                ! []
+
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    if model.speed > 0 then
+        every (second / (toFloat model.speed)) (\t -> NextGen)
+    else
+        Sub.none
 
 
 randomCell : Random.Generator Cell
@@ -81,19 +109,50 @@ randomRow n =
 
 
 randomTable : Int -> Int -> Random.Generator (List (List Cell))
-randomTable m n =
-    Random.list m (randomRow n)
+randomTable w h =
+    Random.list h (randomRow w)
 
 
-extendTableWithZero : LifeGame -> List (List Cell)
-extendTableWithZero lifegame =
+randomLifeGame : Int -> Int -> Random.Generator LifeGame
+randomLifeGame w h =
+    Random.map
+        (\table ->
+            { w = w
+            , h = h
+            , table = table
+            }
+        )
+        (randomTable w h)
+
+
+initializeTableByRandom : Int -> Int -> Cmd Msg
+initializeTableByRandom m n =
+    Random.generate InitializeLifeGame (randomLifeGame m n)
+
+
+
+-- extend
+
+
+edgeFramedTable : EdgeStrategy -> LifeGame -> List (List Cell)
+edgeFramedTable edge =
+    case edge of
+        Zero ->
+            edgeFramedTableWithZero
+
+        Loop ->
+            edgeFramedTableWithLoop
+
+
+edgeFramedTableWithZero : LifeGame -> List (List Cell)
+edgeFramedTableWithZero lifegame =
     [ List.repeat (lifegame.w + 2) Dead ]
         ++ List.map (\l -> [ Dead ] ++ l ++ [ Dead ]) lifegame.table
         ++ [ List.repeat (lifegame.w + 2) Dead ]
 
 
-extendTableWithLoop : LifeGame -> List (List Cell)
-extendTableWithLoop lifegame =
+edgeFramedTableWithLoop : LifeGame -> List (List Cell)
+edgeFramedTableWithLoop lifegame =
     lifegame.table
         |> List.map extendListWithLoop
         |> extendListWithLoop
@@ -139,6 +198,17 @@ evaluateWithNeighbors selfAndNeighbors =
                 Dead
 
 
+nextGen : EdgeStrategy -> LifeGame -> LifeGame
+nextGen edge lifegame =
+    let
+        nextTable =
+            edgeFramedTable edge lifegame
+                |> groupWithNeighbors
+                |> List.map (List.map evaluateWithNeighbors)
+    in
+        { lifegame | table = nextTable }
+
+
 transpose : List (List a) -> List (List a)
 transpose list =
     if List.all List.isEmpty list then
@@ -166,30 +236,29 @@ window n list =
 view : Model -> Html Msg
 view model =
     div []
-        [ text "Hello, World!"
-        , text (toString <| transpose [ [ 1, 2, 3 ], [ 4, 5, 6 ], [ 7, 8, 9 ] ])
-        , text (toString <| window 3 [ 1, 2, 3, 4, 5, 6, 7 ])
+        [ button [ onClick NextGen ] [ text "NextGen" ]
+        , text <| "generation = " ++ toString model.generation
         , viewTable model.lifegame
         ]
 
 
 viewTable : LifeGame -> Html Msg
 viewTable lifegame =
-    table [] <|
+    div [] <|
         List.map viewRow lifegame.table
 
 
 viewRow : List Cell -> Html Msg
 viewRow row =
-    tr [] <|
-        List.map viewCell row
+    div [ style [ ( "clear", "both" ) ] ] <|
+        List.map (lazy viewCell) row
 
 
 viewCell : Cell -> Html Msg
 viewCell cell =
     case cell of
         Alive ->
-            td [ style [ ( "backgroundColor", "white" ) ] ] [ text "*" ]
+            div [ style [ ( "backgroundColor", "white" ), ( "height", "1ex" ), ( "width", "1ex" ), ( "float", "left" ) ] ] []
 
         Dead ->
-            td [ style [ ( "backgroundColor", "black" ) ] ] [ text " " ]
+            div [ style [ ( "backgroundColor", "black" ), ( "height", "1ex" ), ( "width", "1ex" ), ( "float", "left" ) ] ] []
