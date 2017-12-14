@@ -30,7 +30,7 @@ init : Model
 init =
     { generation = 0
     , speed = 2
-    , edge = Zero
+    , edge = DeadPadding
     , lifegame = emptyLifeGame 50 100
     }
 
@@ -56,7 +56,7 @@ type alias LifeGame =
 
 
 type EdgeStrategy
-    = Zero
+    = DeadPadding
     | Loop
 
 
@@ -137,15 +137,15 @@ initializeTableByRandom m n =
 edgeFramedTable : EdgeStrategy -> LifeGame -> List (List Cell)
 edgeFramedTable edge =
     case edge of
-        Zero ->
-            edgeFramedTableWithZero
+        DeadPadding ->
+            edgeFramedTableWithDeadPadding
 
         Loop ->
             edgeFramedTableWithLoop
 
 
-edgeFramedTableWithZero : LifeGame -> List (List Cell)
-edgeFramedTableWithZero lifegame =
+edgeFramedTableWithDeadPadding : LifeGame -> List (List Cell)
+edgeFramedTableWithDeadPadding lifegame =
     [ List.repeat (lifegame.w + 2) Dead ]
         ++ List.map (\l -> [ Dead ] ++ l ++ [ Dead ]) lifegame.table
         ++ [ List.repeat (lifegame.w + 2) Dead ]
