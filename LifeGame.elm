@@ -1,11 +1,12 @@
 module Main exposing (main)
 
-import Html exposing (Html, div, text, button)
-import Html.Attributes exposing (style)
-import Html.Events exposing (onClick)
+import Html exposing (Html, div, text, button, input, select, option, span)
+import Html.Attributes as Attr exposing (style, disabled, type_, min, max, value, name, checked)
+import Html.Events exposing (onClick, onInput)
 import Html.Lazy exposing (lazy)
 import Time exposing (every, second)
 import Random
+import String exposing (toInt)
 
 
 main : Program Never Model Msg
@@ -21,6 +22,7 @@ main =
 type alias Model =
     { generation : Int
     , speed : Int
+    , paused : Bool
     , edge : EdgeStrategy
     , lifegame : LifeGame
     }
@@ -30,6 +32,7 @@ init : Model
 init =
     { generation = 0
     , speed = 2
+    , paused = True
     , edge = DeadPadding
     , lifegame = emptyLifeGame 50 100
     }
@@ -64,6 +67,10 @@ type Msg
     = NoOp
     | InitializeLifeGame LifeGame
     | NextGen
+    | TogglePause
+    | SetSpeed Int
+    | SetEdgeStrategy EdgeStrategy
+    | Initialize
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -82,10 +89,21 @@ update msg model =
             }
                 ! []
 
+        TogglePause ->
+            { model | paused = not model.paused } ! []
+
+        SetSpeed i ->
+            { model | speed = i } ! []
+
+        SetEdgeStrategy edge ->
+            { model | edge = edge } ! []
+
+        Initialize ->
+            model ! [ initializeTableByRandom model.lifegame.w model.lifegame.h ]
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.speed > 0 then
+    if model.speed > 0 && not model.paused then
         every (second / (toFloat model.speed)) (\t -> NextGen)
     else
         Sub.none
@@ -236,14 +254,66 @@ window n list =
 view : Model -> Html Msg
 view model =
     div []
-        [ button [ onClick NextGen ] [ text "NextGen" ]
-        , text <| "generation = " ++ toString model.generation
-        , viewTable model.lifegame
+        [ viewLifeGame model.lifegame
+        , viewController model
+        , viewStatus model
         ]
 
+viewController : Model -> Html Msg
+viewController model =
+    div [ style [ ( "clear", "both" ) ] ]
+        [ initializeButton
+        , singleStepButton model.paused
+        , togglePauseButton model.paused
+        , speedSlider model.speed
+        , selectEdgeStrategy model.edge
+        ]
 
-viewTable : LifeGame -> Html Msg
-viewTable lifegame =
+initializeButton : Html Msg
+initializeButton =
+    button [ onClick Initialize ] [text "ランダムに初期化する"]
+
+singleStepButton : Bool -> Html Msg
+singleStepButton paused =
+    button [ onClick NextGen, disabled <| not paused ] [text "1世代進める"]
+
+
+togglePauseButton : Bool -> Html Msg
+togglePauseButton paused =
+    button [ onClick TogglePause ] [ text <| if paused then "自動再生" else "停止する" ]
+
+
+speedSlider : Int -> Html Msg
+speedSlider speed =
+    let
+        toMsg str =
+            case toInt str of
+                Ok i -> SetSpeed i
+                _ -> NoOp
+    in             
+        input 
+            [ type_ "range", Attr.min "1", Attr.max "10", onInput toMsg, value (toString speed) ] 
+            []
+
+selectEdgeStrategy : EdgeStrategy -> Html Msg
+selectEdgeStrategy edge =
+    span []
+        [ text "境界条件："
+        , input [type_ "radio", name "edgeStrategy", onClick <| SetEdgeStrategy DeadPadding, checked <| edge == DeadPadding] []
+        , text "死亡"
+        , input [type_ "radio", name "edgeStrategy", onClick <| SetEdgeStrategy Loop, checked <| edge == Loop ] []
+        , text "ループ"
+        ]
+        
+
+viewStatus : Model -> Html Msg
+viewStatus model =
+    div []
+        [ text <| "世代数 = " ++ toString model.generation
+        , text <| ", 自動再生スピード = " ++ toString model.speed ]
+
+viewLifeGame : LifeGame -> Html Msg
+viewLifeGame lifegame =
     div [] <|
         List.map viewRow lifegame.table
 
