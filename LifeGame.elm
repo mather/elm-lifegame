@@ -101,6 +101,7 @@ update msg model =
         Initialize ->
             model ! [ initializeTableByRandom model.lifegame.w model.lifegame.h ]
 
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.speed > 0 && not model.paused then
@@ -190,7 +191,7 @@ groupWithNeighbors table =
     table
         |> List.map (window 3)
         |> window 3
-        |> List.map (zipList List.concat)
+        |> List.map (transpose >> List.map List.concat)
 
 
 evaluateWithNeighbors : List Cell -> Cell
@@ -235,14 +236,6 @@ transpose list =
         List.filterMap List.head list :: transpose (List.filterMap List.tail list)
 
 
-zipList : (List a -> a) -> List (List a) -> List a
-zipList f list =
-    if List.all List.isEmpty list then
-        []
-    else
-        (List.filterMap List.head list |> f) :: zipList f (List.filterMap List.tail list)
-
-
 window : Int -> List a -> List (List a)
 window n list =
     if List.length list < n then
@@ -259,6 +252,7 @@ view model =
         , viewStatus model
         ]
 
+
 viewController : Model -> Html Msg
 viewController model =
     div [ style [ ( "clear", "both" ) ] ]
@@ -269,18 +263,26 @@ viewController model =
         , selectEdgeStrategy model.edge
         ]
 
+
 initializeButton : Html Msg
 initializeButton =
-    button [ onClick Initialize ] [text "ランダムに初期化する"]
+    button [ onClick Initialize ] [ text "ランダムに初期化する" ]
+
 
 singleStepButton : Bool -> Html Msg
 singleStepButton paused =
-    button [ onClick NextGen, disabled <| not paused ] [text "1世代進める"]
+    button [ onClick NextGen, disabled <| not paused ] [ text "1世代進める" ]
 
 
 togglePauseButton : Bool -> Html Msg
 togglePauseButton paused =
-    button [ onClick TogglePause ] [ text <| if paused then "自動再生" else "停止する" ]
+    button [ onClick TogglePause ]
+        [ text <|
+            if paused then
+                "自動再生"
+            else
+                "停止する"
+        ]
 
 
 speedSlider : Int -> Html Msg
@@ -288,29 +290,35 @@ speedSlider speed =
     let
         toMsg str =
             case toInt str of
-                Ok i -> SetSpeed i
-                _ -> NoOp
-    in             
-        input 
-            [ type_ "range", Attr.min "1", Attr.max "10", onInput toMsg, value (toString speed) ] 
+                Ok i ->
+                    SetSpeed i
+
+                _ ->
+                    NoOp
+    in
+        input
+            [ type_ "range", Attr.min "1", Attr.max "10", onInput toMsg, value (toString speed) ]
             []
+
 
 selectEdgeStrategy : EdgeStrategy -> Html Msg
 selectEdgeStrategy edge =
     span []
         [ text "境界条件："
-        , input [type_ "radio", name "edgeStrategy", onClick <| SetEdgeStrategy DeadPadding, checked <| edge == DeadPadding] []
+        , input [ type_ "radio", name "edgeStrategy", onClick <| SetEdgeStrategy DeadPadding, checked <| edge == DeadPadding ] []
         , text "死亡"
-        , input [type_ "radio", name "edgeStrategy", onClick <| SetEdgeStrategy Loop, checked <| edge == Loop ] []
+        , input [ type_ "radio", name "edgeStrategy", onClick <| SetEdgeStrategy Loop, checked <| edge == Loop ] []
         , text "ループ"
         ]
-        
+
 
 viewStatus : Model -> Html Msg
 viewStatus model =
     div []
         [ text <| "世代数 = " ++ toString model.generation
-        , text <| ", 自動再生スピード = " ++ toString model.speed ]
+        , text <| ", 自動再生スピード = " ++ toString model.speed
+        ]
+
 
 viewLifeGame : LifeGame -> Html Msg
 viewLifeGame lifegame =
