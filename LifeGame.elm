@@ -186,17 +186,20 @@ extendListWithLoop list =
         List.drop (n - 1) list ++ list ++ List.take 1 list
 
 
-groupWithNeighbors : List (List Cell) -> List (List (List Cell))
+groupWithNeighbors : List (List Cell) -> List (List (List (List Cell)))
 groupWithNeighbors table =
     table
         |> List.map (window 3)
         |> window 3
-        |> List.map (transpose >> List.map List.concat)
+        |> List.map transpose
 
 
-evaluateWithNeighbors : List Cell -> Cell
-evaluateWithNeighbors selfAndNeighbors =
+evaluateWithNeighbors : List (List Cell) -> Cell
+evaluateWithNeighbors nineCells =
     let
+        selfAndNeighbors =
+            List.concat nineCells
+
         self =
             selfAndNeighbors |> List.drop 4 |> List.head
 
