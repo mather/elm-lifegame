@@ -1,6 +1,6 @@
 module Main exposing (main)
 
-import Browser
+import Browser exposing (Document)
 import Html exposing (Html, div, text, button, input, select, option, span)
 import Html.Attributes as Attr exposing (style, disabled, type_, min, max, value, name, checked)
 import Html.Events exposing (onClick, onInput)
@@ -10,10 +10,10 @@ import Random
 import String exposing (toInt)
 
 
-main : Program Never Model Msg
+main : Program () Model Msg
 main =
     Browser.document
-        { init = ( init, Cmd.batch [ initializeTableByRandom init.lifegame.w init.lifegame.h ] )
+        { init = init
         , update = update
         , subscriptions = subscriptions
         , view = view
@@ -29,14 +29,19 @@ type alias Model =
     }
 
 
-init : Model
-init =
+initModel : Model
+initModel =
     { generation = 0
     , speed = 2
     , paused = True
     , edge = DeadPadding
     , lifegame = emptyLifeGame 50 100
     }
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( initModel, Cmd.batch [ initializeTableByRandom initModel.lifegame.w initModel.lifegame.h ] )
 
 
 emptyLifeGame : Int -> Int -> LifeGame
@@ -104,7 +109,7 @@ update msg model =
             ( model, Cmd.batch [ initializeTableByRandom model.lifegame.w model.lifegame.h ] )
 
 
-secondInMillis : float
+secondInMillis : Float
 secondInMillis =
     1000
 
@@ -247,18 +252,22 @@ window n list =
         List.take n list :: window n (List.drop 1 list)
 
 
-view : Model -> Html Msg
+view : Model -> Document Msg
 view model =
-    div []
-        [ viewLifeGame model.lifegame
-        , viewController model
-        , viewStatus model
+    { title = "Elm LifeGame"
+    , body =
+        [ div []
+            [ viewLifeGame model.lifegame
+            , viewController model
+            , viewStatus model
+            ]
         ]
+    }
 
 
 viewController : Model -> Html Msg
 viewController model =
-    div [ style [ ( "clear", "both" ) ] ]
+    div [ style "clear" "both" ]
         [ initializeButton
         , singleStepButton model.paused
         , togglePauseButton model.paused
@@ -293,10 +302,10 @@ speedSlider speed =
     let
         toMsg str =
             case toInt str of
-                Ok i ->
+                Just i ->
                     SetSpeed i
 
-                _ ->
+                Nothing ->
                     NoOp
     in
         input
@@ -331,7 +340,7 @@ viewLifeGame lifegame =
 
 viewRow : List Cell -> Html Msg
 viewRow row =
-    div [ style [ ( "clear", "both" ) ] ] <|
+    div [ style "clear" "both" ] <|
         List.map (lazy viewCell) row
 
 
@@ -339,7 +348,19 @@ viewCell : Cell -> Html Msg
 viewCell cell =
     case cell of
         Alive ->
-            div [ style [ ( "backgroundColor", "white" ), ( "height", "1ex" ), ( "width", "1ex" ), ( "float", "left" ) ] ] []
+            div
+                [ style "backgroundColor" "white"
+                , style "height" "1ex"
+                , style "width" "1ex"
+                , style "float" "left"
+                ]
+                []
 
         Dead ->
-            div [ style [ ( "backgroundColor", "black" ), ( "height", "1ex" ), ( "width", "1ex" ), ( "float", "left" ) ] ] []
+            div
+                [ style "backgroundColor" "black"
+                , style "height" "1ex"
+                , style "width" "1ex"
+                , style "float" "left"
+                ]
+                []
