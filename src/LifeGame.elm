@@ -1,18 +1,19 @@
 module Main exposing (main)
 
+import Browser
 import Html exposing (Html, div, text, button, input, select, option, span)
 import Html.Attributes as Attr exposing (style, disabled, type_, min, max, value, name, checked)
 import Html.Events exposing (onClick, onInput)
 import Html.Lazy exposing (lazy)
-import Time exposing (every, second)
+import Time exposing (every)
 import Random
 import String exposing (toInt)
 
 
 main : Program Never Model Msg
 main =
-    Html.program
-        { init = init ! [ initializeTableByRandom init.lifegame.w init.lifegame.h ]
+    Browser.document
+        { init = ( init, Cmd.batch [ initializeTableByRandom init.lifegame.w init.lifegame.h ] )
         , update = update
         , subscriptions = subscriptions
         , view = view
@@ -77,49 +78,48 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NoOp ->
-            model ! []
+            ( model, Cmd.none )
 
         InitializeLifeGame lifegame ->
-            { model | lifegame = lifegame, generation = 0 } ! []
+            ( { model | lifegame = lifegame, generation = 0 }, Cmd.none )
 
         NextGen ->
-            { model
+            ( { model
                 | lifegame = nextGen model.edge model.lifegame
                 , generation = model.generation + 1
-            }
-                ! []
+              }
+            , Cmd.none
+            )
 
         TogglePause ->
-            { model | paused = not model.paused } ! []
+            ( { model | paused = not model.paused }, Cmd.none )
 
         SetSpeed i ->
-            { model | speed = i } ! []
+            ( { model | speed = i }, Cmd.none )
 
         SetEdgeStrategy edge ->
-            { model | edge = edge } ! []
+            ( { model | edge = edge }, Cmd.none )
 
         Initialize ->
-            model ! [ initializeTableByRandom model.lifegame.w model.lifegame.h ]
+            ( model, Cmd.batch [ initializeTableByRandom model.lifegame.w model.lifegame.h ] )
+
+
+secondInMillis : float
+secondInMillis =
+    1000
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.speed > 0 && not model.paused then
-        every (second / (toFloat model.speed)) (\t -> NextGen)
+        every (secondInMillis / (toFloat model.speed)) (\t -> NextGen)
     else
         Sub.none
 
 
 randomCell : Random.Generator Cell
 randomCell =
-    Random.map
-        (\b ->
-            if b then
-                Alive
-            else
-                Dead
-        )
-        Random.bool
+    Random.uniform Alive [ Dead ]
 
 
 randomRow : Int -> Random.Generator (List Cell)
@@ -300,7 +300,7 @@ speedSlider speed =
                     NoOp
     in
         input
-            [ type_ "range", Attr.min "1", Attr.max "10", onInput toMsg, value (toString speed) ]
+            [ type_ "range", Attr.min "1", Attr.max "10", onInput toMsg, value (String.fromInt speed) ]
             []
 
 
@@ -318,8 +318,8 @@ selectEdgeStrategy edge =
 viewStatus : Model -> Html Msg
 viewStatus model =
     div []
-        [ text <| "世代数 = " ++ toString model.generation
-        , text <| ", 自動再生スピード = " ++ toString model.speed
+        [ text <| "世代数 = " ++ String.fromInt model.generation
+        , text <| ", 自動再生スピード = " ++ String.fromInt model.speed
         ]
 
 
